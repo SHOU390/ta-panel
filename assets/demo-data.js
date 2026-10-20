@@ -723,11 +723,13 @@ const DEMO_DATA = {
   ],
   "ta_roster": [
     "Grace",
+    "Robin",
     "ZRR",
     "Mandy",
     "Jason",
     "Sean",
     "Michael",
-    "Robin"
+    "Suping",
+    "James Jiang"
   ]
 };
