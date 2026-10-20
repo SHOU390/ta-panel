@@ -185,41 +185,34 @@ function renderDemoUserPicker(){
   app.appendChild(box);
 }
 
-/* ===================== 登录（真实模式） ===================== */
+/* ===================== 登录（真实模式 · 账号由管理员统一开通） ===================== */
+function cap(n){n=(n||'').trim();return n?n.charAt(0).toUpperCase()+n.slice(1):n}
+function taEmail(v){v=(v||'').trim();return v.includes('@')?v:(v.toLowerCase()+'@ta.snailai.au')}
 function renderAuth(){
   const app=$('#app'); app.innerHTML='';
   const box=el(`<div class="auth-box">
     <h2>助教登录</h2>
-    <p>用你注册时的邮箱登录。没有账号？点「注册」新建（显示名会被记为你的助教名）。</p>
-    <label class="fld">显示名（注册时填，作为你的助教名）</label>
-    <input id="disp" placeholder="例如 ZRR / Mandy" />
-    <label class="fld">邮箱</label>
-    <input id="email" type="email" placeholder="you@example.com" />
-    <label class="fld">密码（至少 6 位）</label>
+    <p>账号由管理员统一开通。输入你的<b>助教名 + 密码</b>即可（不区分大小写）。没有账号？找 Grace 开通。</p>
+    <label class="fld">助教名</label>
+    <input id="email" placeholder="例如 Jason / ZRR / Mandy" />
+    <label class="fld">密码</label>
     <input id="pw" type="password" placeholder="••••••" />
     <div style="margin-top:16px" class="row">
       <button class="btn-primary" id="login" style="flex:1">登录</button>
-      <button class="btn-ghost" id="signup" style="flex:1">注册</button>
     </div>
     <p id="msg" style="color:var(--red);min-height:18px;margin-top:10px"></p>
   </div>`);
   app.appendChild(box);
   box.querySelector('#login').onclick=async()=>{
-    const {error}=await sb.auth.signInWithPassword({email:$('#email').value,password:$('#pw').value});
+    const {error}=await sb.auth.signInWithPassword({email:taEmail($('#email').value),password:$('#pw').value});
     if(error){$('#msg').textContent=error.message;}
-  };
-  box.querySelector('#signup').onclick=async()=>{
-    const {error}=await sb.auth.signUp({email:$('#email').value,password:$('#pw').value,
-      options:{data:{display_name:$('#disp').value||$('#email').value.split('@')[0]}}});
-    if(error){$('#msg').textContent=error.message;}
-    else{$('#msg').style.color='var(--green)';$('#msg').textContent='注册成功！请查收验证邮件后登录（若开启邮箱确认）。';}
   };
 }
 
 /* ===================== 进入应用（真实） ===================== */
 async function enterApp(authUser){
   const {data:p}=await sb.from('profiles').select('*').eq('id',authUser.id).single();
-  state.user={id:authUser.id,name:p?.display_name||authUser.email,role:p?.role||'ta'};
+  state.user={id:authUser.id,name:cap(p?.display_name)||'TA',role:p?.role||'ta'};
   await loadLiveData();
   bindRealtime();
   renderApp();
@@ -243,7 +236,7 @@ async function loadLiveData(){
   state.modules={}; (mods||[]).forEach(m=>state.modules[m.id]=m);
   state.sessions=sess||[];
   state.profiles={}; (profs||[]).forEach(p=>state.profiles[p.id]=p);
-  const cm={}; (claims||[]).forEach(c=>cm[c.session_id]=state.profiles[c.ta_user_id]?.display_name||'某人');
+  const cm={}; (claims||[]).forEach(c=>cm[c.session_id]=cap(state.profiles[c.ta_user_id]?.display_name)||'某人');
   state.claimsMap=cm;
 }
 function bindRealtime(){
@@ -362,10 +355,11 @@ function renderApp(){
 function ownerName(s){ return state.claimsMap[s.id] || s.assigned_ta_name || null; }
 function isClaimed(s){ return !!ownerName(s); }
 function isMine(s){
-  const o=ownerName(s);
-  if(o && o===state.user?.name) return true;
+  const my=(state.user?.name||'').toLowerCase();
+  const o=(ownerName(s)||'').toLowerCase();
+  if(o && o===my) return true;
   // 文档里指定给你但还没认领 → 也算“待你确认”
-  if(!state.claimsMap[s.id] && s.assigned_ta_name && s.assigned_ta_name===state.user?.name) return true;
+  if(!state.claimsMap[s.id] && s.assigned_ta_name && s.assigned_ta_name.toLowerCase()===my) return true;
   return false;
 }
 
