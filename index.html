@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>蜗牛AI 第二期 · 助教分配面板</title>
+<!-- 真实模式：连接 Supabase。把下面的两个常量填上你的项目值即可（见 setup.md）。留空则进入演示模式。 -->
+<script>
+  // ====== 配置区（仅需改这一块）======
+  const SUPABASE_URL = "https://cgjargprcxqlkrdugwgq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_Twld37RkWmDT5WBXtFRcag_7GnB4UbT";
+  // ===================================
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/demo-data.js"></script>
+<style>
+  :root{
+    --bg:#f4f7f6; --card:#fff; --primary:#1f9d6b; --primary-d:#157a52;
+    --accent:#0f766e; --text:#1f2937; --muted:#6b7280; --border:#e5e7eb;
+    --amber:#b45309; --amber-bg:#fef3c7; --green:#15803d; --green-bg:#dcfce7;
+    --red:#b91c1c; --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+       background:var(--bg);color:var(--text);line-height:1.55;font-size:15px}
+  header.top{background:linear-gradient(135deg,var(--primary),var(--accent));color:#fff;padding:14px 20px;
+       display:flex;align-items:center;gap:14px;flex-wrap:wrap;box-shadow:var(--shadow)}
+  header.top .logo{height:42px;width:42px;border-radius:10px;background:#fff;display:flex;align-items:center;
+       justify-content:center;font-weight:800;font-size:20px;color:var(--primary)}
+  header.top h1{font-size:18px;margin:0;font-weight:700}
+  header.top .sub{font-size:12px;opacity:.9}
+  .top-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .mode-tag{font-size:12px;background:rgba(255,255,255,.18);padding:3px 9px;border-radius:20px}
+  .wrap{max-width:1080px;margin:0 auto;padding:18px 16px 60px}
+  .auth-box{max-width:380px;margin:80px auto;background:var(--card);padding:26px;border-radius:14px;box-shadow:var(--shadow)}
+  .auth-box h2{margin:0 0 6px;font-size:20px}
+  .auth-box p{color:var(--muted);font-size:13px;margin:0 0 18px}
+  label.fld{display:block;font-size:13px;margin:12px 0 4px;color:#374151;font-weight:600}
+  input,select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:9px;font-size:14px;background:#fff}
+  input:focus,select:focus{outline:2px solid var(--primary);border-color:var(--primary)}
+  button{cursor:pointer;border:none;border-radius:9px;font-size:14px;font-weight:600;padding:10px 16px;transition:.15s}
+  .btn-primary{background:var(--primary);color:#fff}
+  .btn-primary:hover{background:var(--primary-d)}
+  .btn-ghost{background:#eef2f1;color:#374151}
+  .btn-ghost:hover{background:#e2e8e6}
+  .btn-sm{padding:6px 12px;font-size:13px}
+  .btn-danger{background:#fee2e2;color:var(--red)}
+  .row{display:flex;gap:10px;align-items:center}
+  .tabs{display:flex;gap:6px;border-bottom:2px solid var(--border);margin:18px 0 16px;flex-wrap:wrap}
+  .tab{padding:9px 16px;border-radius:9px 9px 0 0;background:transparent;color:var(--muted);font-weight:600}
+  .tab.active{background:var(--card);color:var(--primary);box-shadow:var(--shadow);position:relative;top:2px}
+  .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:flex-end}
+  .filters .fld{margin:0}
+  .filters > div{min-width:130px}
+  .stats{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;font-size:13px;color:var(--muted)}
+  .stats b{color:var(--text)}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:var(--shadow)}
+  .card .head{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;cursor:pointer}
+  .badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap}
+  .b-week{background:#eef2ff;color:#3730a3}
+  .b-seat{background:#ecfeff;color:#0e7490}
+  .b-dur{background:#f1f5f9;color:#475569}
+  .b-claimed{background:var(--green-bg);color:var(--green)}
+  .b-open{background:var(--amber-bg);color:var(--amber)}
+  .b-mine{background:#fff7ed;color:#c2410c}
+  .topic{font-size:16px;font-weight:700;margin:2px 0}
+  .meta{font-size:13px;color:var(--muted);width:100%}
+  .accept{font-size:13px;color:#374151;margin-top:6px;background:#f8fafc;border-left:3px solid var(--primary);padding:7px 10px;border-radius:0 8px 8px 0}
+  .owner{font-size:13px;margin-top:6px}
+  .owner b{color:var(--primary-d)}
+  .detail{margin-top:12px;border-top:1px dashed var(--border);padding-top:12px;display:none}
+  .detail.open{display:block}
+  .sec{margin-bottom:12px}
+  .sec h4{margin:0 0 6px;font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.04em}
+  .sec ul{margin:0;padding-left:18px}
+  .sec li{margin:3px 0}
+  table.pit{width:100%;border-collapse:collapse;font-size:13px}
+  table.pit th,table.pit td{border:1px solid var(--border);padding:6px 8px;text-align:left;vertical-align:top}
+  table.pit th{background:#f8fafc;font-weight:600}
+  .empty{text-align:center;color:var(--muted);padding:40px}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;
+       padding:11px 18px;border-radius:10px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:50}
+  .toast.show{opacity:1}
+  .userbar{display:flex;align-items:center;gap:8px;font-size:13px}
+  .avatar{width:30px;height:30px;border-radius:50%;background:var(--primary);color:#fff;display:flex;
+       align-items:center;justify-content:center;font-weight:700;font-size:13px}
+  .admin-only{display:none}
+  body.is-admin .admin-only{display:inline-flex}
+  .note{background:#fffbeb;border:1px solid #fde68a;color:#92400e;padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:14px}
+  a.link{color:var(--primary-d);font-weight:600}
+  @media(max-width:560px){.filters>div{flex:1 1 100%}}
+</style>
+</head>
+<body>
+<header class="top">
+  <img class="logo-img" src="assets/logo.png" alt="logo" style="display:none;height:42px;width:42px;border-radius:10px;object-fit:cover"
+       onload="this.style.display='flex';document.getElementById('logoFallback').style.display='none'"
+       onerror="this.style.display='none';document.getElementById('logoFallback').style.display='flex'">
+  <div class="logo" id="logoFallback" style="display:flex">蜗牛</div>
+  <div>
+    <h1>蜗牛AI 第二期 · 助教分配面板</h1>
+    <div class="sub">TA Assignment Panel · 2026-10-26 → 2026-12-17 · 全线上 Zoom</div>
+  </div>
+  <div class="top-right" id="topRight"></div>
+</header>
+
+<div class="wrap" id="app"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== 状态 ===================== */
+const LIVE = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
+let sb = null;            // supabase client
+let state = {
+  user: null,             // {id, name, role}
+  modules: {}, sessions: [], claimsMap: {}, profiles: {},
+  filterWeek: "all", filterTa: "all", tab: "mine", expanded: {},
+  demoUser: null
+};
+
+/* ===================== 工具 ===================== */
+function $(s){return document.querySelector(s)}
+function el(html){const t=document.createElement('template');t.innerHTML=html.trim();return t.content.firstChild}
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2200)}
+function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function initials(n){return (n||'?').slice(0,2)}
+function weekLabel(w){return '第'+w+'周'}
+
+/* ===================== 演示模式数据层 ===================== */
+const LS_KEY = 'ta_panel_demo_claims_v1';
+function demoLoadClaims(){try{return JSON.parse(localStorage.getItem(LS_KEY)||'{}')}catch(e){return{}}}
+function demoSaveClaims(m){localStorage.setItem(LS_KEY,JSON.stringify(m))}
+const LS_ASSIGN = 'ta_panel_demo_assign_v1';
+function demoLoadAssign(){try{return JSON.parse(localStorage.getItem(LS_ASSIGN)||'{}')}catch(e){return{}}}
+function demoSaveAssign(m){localStorage.setItem(LS_ASSIGN,JSON.stringify(m))}
+
+/* ===================== 初始化 ===================== */
+async function init(){
+  const app=$('#app'); const tr=$('#topRight');
+  if(LIVE){
+    tr.innerHTML='<span class="mode-tag">🌐 真实模式 · Supabase</span>';
+    sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+    const {data:{session}}=await sb.auth.getSession();
+    if(session){await enterApp(session.user);}
+    else{renderAuth();}
+    sb.auth.onAuthStateChange((_e,s)=>{ if(s&&s.user) enterApp(s.user); else {state.user=null;renderAuth();} });
+  } else {
+    tr.innerHTML='<span class="mode-tag">🧪 演示模式（无需账号）</span>';
+    renderDemoUserPicker();
+  }
+}
+
+/* ===================== 演示用户选择 ===================== */
+function renderDemoUserPicker(){
+  const roster=(typeof DEMO_DATA!=='undefined'?DEMO_DATA.ta_roster:['Grace','ZRR','Mandy','Sean','Michael','Robin']);
+  const app=$('#app');
+  app.innerHTML='';
+  const box=el(`<div class="auth-box">
+    <h2>演示预览</h2>
+    <p>未连接 Supabase，先选一个身份看看面板长什么样。认领/内容都会即时展开。要上线时按 setup.md 填好配置即可。</p>
+    <label class="fld">选择当前身份</label>
+    <select id="demoSel"></select>
+    <div style="margin-top:16px" class="row">
+      <button class="btn-primary" id="demoGo" style="flex:1">进入面板</button>
+    </div>
+    <p style="margin-top:14px;font-size:12px">提示：选 <b>Grace</b> 或 <b>Robin</b> 可看到管理员视图（分配/管理）。</p>
+  </div>`);
+  const sel=box.querySelector('#demoSel');
+  roster.forEach(n=>{const o=el('<option></option>');o.value=n;o.textContent=n+(n==='Grace'||n==='Robin'?'（管理员）':'');sel.appendChild(o)});
+  box.querySelector('#demoGo').onclick=()=>{
+    const name=sel.value;
+    state.demoUser=name;
+    state.user={id:'demo-'+name,name,role:(name==='Grace'||name==='Robin'?'admin':'ta')};
+    enterAppDemo();
+  };
+  app.appendChild(box);
+}
+
+/* ===================== 登录（真实模式） ===================== */
+function renderAuth(){
+  const app=$('#app'); app.innerHTML='';
+  const box=el(`<div class="auth-box">
+    <h2>助教登录</h2>
+    <p>用你注册时的邮箱登录。没有账号？点「注册」新建（显示名会被记为你的助教名）。</p>
+    <label class="fld">显示名（注册时填，作为你的助教名）</label>
+    <input id="disp" placeholder="例如 ZRR / Mandy" />
+    <label class="fld">邮箱</label>
+    <input id="email" type="email" placeholder="you@example.com" />
+    <label class="fld">密码（至少 6 位）</label>
+    <input id="pw" type="password" placeholder="••••••" />
+    <div style="margin-top:16px" class="row">
+      <button class="btn-primary" id="login" style="flex:1">登录</button>
+      <button class="btn-ghost" id="signup" style="flex:1">注册</button>
+    </div>
+    <p id="msg" style="color:var(--red);min-height:18px;margin-top:10px"></p>
+  </div>`);
+  app.appendChild(box);
+  box.querySelector('#login').onclick=async()=>{
+    const {error}=await sb.auth.signInWithPassword({email:$('#email').value,password:$('#pw').value});
+    if(error){$('#msg').textContent=error.message;}
+  };
+  box.querySelector('#signup').onclick=async()=>{
+    const {error}=await sb.auth.signUp({email:$('#email').value,password:$('#pw').value,
+      options:{data:{display_name:$('#disp').value||$('#email').value.split('@')[0]}}});
+    if(error){$('#msg').textContent=error.message;}
+    else{$('#msg').style.color='var(--green)';$('#msg').textContent='注册成功！请查收验证邮件后登录（若开启邮箱确认）。';}
+  };
+}
+
+/* ===================== 进入应用（真实） ===================== */
+async function enterApp(authUser){
+  const {data:p}=await sb.from('profiles').select('*').eq('id',authUser.id).single();
+  state.user={id:authUser.id,name:p?.display_name||authUser.email,role:p?.role||'ta'};
+  await loadLiveData();
+  bindRealtime();
+  renderApp();
+}
+/* 进入应用（演示） */
+async function enterAppDemo(){
+  state.modules=(typeof DEMO_DATA!=='undefined'?DEMO_DATA.modules:{});
+  state.sessions=(typeof DEMO_DATA!=='undefined'?DEMO_DATA.sessions:[]);
+  state.claimsMap=demoLoadClaims();
+  renderApp();
+}
+
+/* ===================== 真实模式数据加载 ===================== */
+async function loadLiveData(){
+  const [{data:mods},{data:sess},{data:claims},{data:profs}]=await Promise.all([
+    sb.from('module_guides').select('*'),
+    sb.from('sessions').select('*').order('week').order('seat'),
+    sb.from('claims').select('*'),
+    sb.from('profiles').select('*')
+  ]);
+  state.modules={}; (mods||[]).forEach(m=>state.modules[m.id]=m);
+  state.sessions=sess||[];
+  state.profiles={}; (profs||[]).forEach(p=>state.profiles[p.id]=p);
+  const cm={}; (claims||[]).forEach(c=>cm[c.session_id]=state.profiles[c.ta_user_id]?.display_name||'某人');
+  state.claimsMap=cm;
+}
+function bindRealtime(){
+  sb.channel('ta').on('postgres_changes',{event:'*',schema:'public',table:'claims'},()=>loadLiveData().then(renderApp))
+    .on('postgres_changes',{event:'*',schema:'public',table:'sessions'},()=>loadLiveData().then(renderApp))
+    .subscribe();
+}
+
+/* ===================== 认领 / 取消（统一接口） ===================== */
+async function claim(sessionId){
+  if(LIVE){
+    const {error}=await sb.from('claims').upsert({session_id:sessionId,ta_user_id:state.user.id,status:'claimed'});
+    if(error){toast('认领失败：'+error.message);return;}
+    toast('✅ 已认领，课程内容已展开');
+    await loadLiveData();
+  } else {
+    state.claimsMap[sessionId]=state.user.name;
+    demoSaveClaims(state.claimsMap);
+    toast('✅ 已认领，课程内容已展开（演示）');
+  }
+  state.expanded[sessionId]=true;
+  renderApp();
+  const node=document.getElementById('card-'+sessionId);
+  if(node) node.scrollIntoView({behavior:'smooth',block:'center'});
+}
+async function unclaim(sessionId){
+  if(LIVE){
+    const {error}=await sb.from('claims').delete().eq('session_id',sessionId).eq('ta_user_id',state.user.id);
+    if(error){toast('操作失败：'+error.message);return;}
+    await loadLiveData();
+  } else {
+    delete state.claimsMap[sessionId]; demoSaveClaims(state.claimsMap);
+  }
+  renderApp();
+}
+async function adminAssign(sessionId,taName){
+  const safe=taName===''?(LIVE?null:undefined):taName;
+  if(LIVE){
+    const {error}=await sb.from('sessions').update({assigned_ta_name:safe}).eq('id',sessionId);
+    if(error){toast('分配失败：'+error.message);return;}
+    await loadLiveData();
+  } else {
+    const a=demoLoadAssign(); if(safe===undefined)delete a[sessionId]; else a[sessionId]=safe; demoSaveAssign(a);
+    // 演示里把 assigned 也并回 sessions 显示
+    const s=state.sessions.find(x=>x.id===sessionId); if(s)s.assigned_ta_name=safe;
+  }
+  renderApp();
+}
+
+/* ===================== 渲染主界面 ===================== */
+function renderApp(){
+  document.body.classList.toggle('is-admin', state.user?.role==='admin');
+  const tr=$('#topRight');
+  tr.innerHTML=`<span class="mode-tag">${(state.user?.role==='admin'?'👑 管理员':'🎓 助教')} · ${esc(state.user?.name)}</span>
+    <button class="btn-ghost btn-sm" id="logout">${LIVE?'退出':'切换身份'}</button>`;
+  $('#logout').onclick=()=>{ if(LIVE&&sb){sb.auth.signOut();} else {state.demoUser=null;renderDemoUserPicker();} };
+
+  const app=$('#app'); app.innerHTML='';
+
+  // 顶部说明（仅管理员可见一句）
+  if(state.user?.role==='admin'){
+    app.appendChild(el(`<div class="note">👑 管理员视图：可看到全部席位，并在「管理」页把某席位分配给指定助教。助教本人只能认领/查看自己的课。</div>`));
+  }
+
+  // tabs
+  const tabs=el(`<div class="tabs">
+    <button class="tab ${state.tab==='mine'?'active':''}" data-t="mine">我的课表</button>
+    <button class="tab ${state.tab==='all'?'active':''}" data-t="all">全部席位</button>
+    <button class="tab admin-only ${state.tab==='manage'?'active':''}" data-t="manage">管理分配</button>
+  </div>`);
+  tabs.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{state.tab=b.dataset.t;renderApp()});
+  app.appendChild(tabs);
+
+  if(state.tab==='manage'){ renderManage(app); return; }
+
+  // filters + stats
+  const weeks=[...new Set(state.sessions.map(s=>s.week))].sort((a,b)=>a-b);
+  const tas=[...new Set([...state.sessions.map(s=>s.assigned_ta_name).filter(Boolean),
+                         ...Object.values(state.claimsMap).filter(Boolean)])];
+  const filt=el(`<div class="filters">
+    <div><label class="fld">周次</label><select id="fw"><option value="all">全部周</option>${weeks.map(w=>`<option value="${w}">${weekLabel(w)}</option>`).join('')}</select></div>
+    <div><label class="fld">助教</label><select id="ft"><option value="all">全部助教</option>${tas.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('')}</select></div>
+  </div>`);
+  filt.querySelector('#fw').value=state.filterWeek; filt.querySelector('#ft').value=state.filterTa;
+  filt.querySelector('#fw').onchange=e=>{state.filterWeek=e.target.value;renderApp()};
+  filt.querySelector('#ft').onchange=e=>{state.filterTa=e.target.value;renderApp()};
+  app.appendChild(filt);
+
+  // 统计
+  const total=state.sessions.length;
+  const claimed=state.sessions.filter(s=>isClaimed(s)).length;
+  const mine=state.sessions.filter(s=>isMine(s)).length;
+  app.appendChild(el(`<div class="stats">
+    <span>总席位 <b>${total}</b></span><span>已认领 <b>${claimed}</b></span>
+    <span>未认领 <b>${total-claimed}</b></span>
+    ${state.tab==='mine'?`<span>我的 <b>${mine}</b></span>`:''}
+  </div>`));
+
+  // 列表
+  let list=state.sessions.slice();
+  if(state.tab==='mine') list=list.filter(s=>isMine(s));
+  if(state.filterWeek!=='all') list=list.filter(s=>+s.week===+state.filterWeek);
+  if(state.filterTa!=='all') list=list.filter(s=>ownerName(s)===state.filterTa);
+
+  if(!list.length){ app.appendChild(el(`<div class="empty">暂无匹配的席位。${state.tab==='mine'?'去「全部席位」里认领一个吧。':''}</div>`)); return; }
+
+  // 按周分组
+  const byWeek={}; list.forEach(s=>{(byWeek[s.week]=byWeek[s.week]||[]).push(s)});
+  Object.keys(byWeek).sort((a,b)=>a-b).forEach(w=>{
+    app.appendChild(el(`<h3 style="margin:18px 0 8px;color:var(--accent)">${weekLabel(w)}</h3>`));
+    byWeek[w].forEach(s=>app.appendChild(renderCard(s)));
+  });
+}
+
+/* 某席位当前归属名（claim 优先，否则 assigned_ta_name） */
+function ownerName(s){ return state.claimsMap[s.id] || s.assigned_ta_name || null; }
+function isClaimed(s){ return !!ownerName(s); }
+function isMine(s){
+  const o=ownerName(s);
+  if(o && o===state.user?.name) return true;
+  // 文档里指定给你但还没认领 → 也算“待你确认”
+  if(!state.claimsMap[s.id] && s.assigned_ta_name && s.assigned_ta_name===state.user?.name) return true;
+  return false;
+}
+
+function renderCard(s){
+  const o=ownerName(s);
+  const claimed=!!o;
+  const mine=isMine(s);
+  const mod=state.modules[s.module_number]||{};
+  const card=el(`<div class="card" id="card-${s.id}">
+    <div class="head" data-toggle="${s.id}">
+      <span class="badge b-week">${weekLabel(s.week)}</span>
+      <span class="badge b-seat">${esc(s.seat)}</span>
+      <span class="badge b-dur">${s.duration_min}分钟</span>
+      ${claimed?`<span class="badge b-claimed">已认领</span>`:`<span class="badge b-open">待认领</span>`}
+      ${mine?`<span class="badge b-mine">我的</span>`:''}
+      <div class="topic">${esc(s.topic)}</div>
+    </div>
+    <div class="meta">📅 ${esc(s.class_date)}（${s.seat.startsWith('1')?'周一主课':'周四 Review'}）20:00–22:30 · Zoom 线上</div>
+    <div class="accept"><b>验收点：</b>${esc(s.acceptance)}</div>
+    ${o?`<div class="owner">负责助教：<b>${esc(o)}</b></div>`:''}
+    <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap">
+      ${!claimed?`<button class="btn-primary btn-sm" data-claim="${s.id}">✋ 认领这个席位</button>`
+                 :(mine?`<button class="btn-danger btn-sm" data-unclaim="${s.id}">取消认领</button>`
+                        :`<span class="badge b-claimed">已由 ${esc(o)} 负责</span>`)}
+      <button class="btn-ghost btn-sm" data-toggle="${s.id}">${state.expanded[s.id]?'收起课程内容 ▲':'查看课程内容 ▼'}</button>
+    </div>
+    <div class="detail ${state.expanded[s.id]?'open':''}" id="det-${s.id}">${renderDetail(mod)}</div>
+  </div>`);
+  card.querySelectorAll('[data-claim]').forEach(b=>b.onclick=e=>{e.stopPropagation();claim(+b.dataset.claim)});
+  card.querySelectorAll('[data-unclaim]').forEach(b=>b.onclick=e=>{e.stopPropagation();unclaim(+b.dataset.unclaim)});
+  card.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>{state.expanded[s.id]=!state.expanded[s.id];renderApp()});
+  return card;
+}
+
+/* 认领后即时展开的课程内容（Robin 的反馈：认领即看内容，少点击） */
+function renderDetail(mod){
+  if(!mod||!mod.title) return '<p class="meta">（暂无该模块教学指南）</p>';
+  const kp=(mod.key_points||[]).map(p=>`<li>${esc(p)}</li>`).join('');
+  const cp=(mod.class_practice||[]).map(p=>`<li>${esc(p)}</li>`).join('');
+  const pf=(mod.pitfalls||[]).map(r=>`<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td></tr>`).join('');
+  return `
+    <div class="sec"><h4>模块</h4><div>${esc(mod.title)} · ${esc(mod.weeks_label||'')}</div></div>
+    <div class="sec"><h4>教学目标</h4><div>${esc(mod.objectives||'')}</div></div>
+    <div class="sec"><h4>内容要点与讲法</h4><ul>${kp}</ul></div>
+    <div class="sec"><h4>课堂实操（当堂全员完成）</h4><ul>${cp}</ul></div>
+    <div class="sec"><h4>高频卡点与解法</h4>
+      <table class="pit"><thead><tr><th>卡点</th><th>现象</th><th>解法</th></tr></thead><tbody>${pf}</tbody></table></div>
+    <div class="sec"><h4>能力清单映射</h4><div class="meta">${esc(mod.ability_map||'')}</div></div>`;
+}
+
+/* 管理页：管理员分配席位 */
+function renderManage(app){
+  app.appendChild(el(`<div class="note">把每个席位分配给对应助教（与《V3 助教分配总表》一致）。改完助教端实时可见。</div>`));
+  const roster=(typeof DEMO_DATA!=='undefined'?DEMO_DATA.ta_roster:['Grace','ZRR','Mandy','Jason','Sean','Michael','Robin']);
+  const weeks=[...new Set(state.sessions.map(s=>s.week))].sort((a,b)=>a-b);
+  weeks.forEach(w=>{
+    app.appendChild(el(`<h3 style="margin:18px 0 8px;color:var(--accent)">${weekLabel(w)}</h3>`));
+    state.sessions.filter(s=>+s.week===+w).forEach(s=>{
+      const o=ownerName(s);
+      const opts=`<option value="">— 未分配 —</option>`+roster.map(n=>`<option value="${esc(n)}" ${o===n?'selected':''}>${esc(n)}</option>`).join('');
+      const row=el(`<div class="card"><div class="row" style="justify-content:space-between">
+        <div><span class="badge b-seat">${esc(s.seat)}</span> <b>${esc(s.topic)}</b>
+          <span class="meta"> · ${esc(s.class_date)}</span></div>
+        <div style="min-width:160px"><select data-assign="${s.id}">${opts}</select></div>
+      </div>`);
+      row.querySelector('[data-assign]').onchange=e=>adminAssign(+e.target.dataset.assign,e.target.value);
+      app.appendChild(row);
+    });
+  });
+}
+
+init();
+</script>
+</body>
+</html>
