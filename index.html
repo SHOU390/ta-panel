@@ -70,6 +70,13 @@
   .owner b{color:var(--primary-d)}
   .detail{margin-top:12px;border-top:1px dashed var(--border);padding-top:12px;display:none}
   .detail.open{display:block}
+  .mod-ref{margin-top:12px;border:1px solid var(--border);border-radius:10px;background:#f8fafc;padding:8px 12px}
+  .mod-ref>summary{cursor:pointer;font-weight:700;color:var(--muted);font-size:13px;list-style:none}
+  .mod-ref>summary::-webkit-details-marker{display:none}
+  .mod-ref>summary::before{content:"▸ "}
+  .mod-ref[open]>summary::before{content:"▾ "}
+  .mod-ref .sec:first-child{margin-top:8px}
+  .badge-tag{display:inline-block;background:var(--amber-bg);color:var(--amber);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:6px}
   .sec{margin-bottom:12px}
   .sec h4{margin:0 0 6px;font-size:13px;color:var(--accent);text-transform:uppercase;letter-spacing:.04em}
   .sec ul{margin:0;padding-left:18px}
@@ -386,7 +393,7 @@ function renderCard(s){
                         :`<span class="badge b-claimed">已由 ${esc(o)} 负责</span>`)}
       <button class="btn-ghost btn-sm" data-toggle="${s.id}">${state.expanded[s.id]?'收起课程内容 ▲':'查看课程内容 ▼'}</button>
     </div>
-    <div class="detail ${state.expanded[s.id]?'open':''}" id="det-${s.id}">${renderDetail(mod)}</div>
+    <div class="detail ${state.expanded[s.id]?'open':''}" id="det-${s.id}">${renderDetail(s)}</div>
   </div>`);
   card.querySelectorAll('[data-claim]').forEach(b=>b.onclick=e=>{e.stopPropagation();claim(+b.dataset.claim)});
   card.querySelectorAll('[data-unclaim]').forEach(b=>b.onclick=e=>{e.stopPropagation();unclaim(+b.dataset.unclaim)});
@@ -394,20 +401,46 @@ function renderCard(s){
   return card;
 }
 
-/* 认领后即时展开的课程内容（Robin 的反馈：认领即看内容，少点击） */
-function renderDetail(mod){
-  if(!mod||!mod.title) return '<p class="meta">（暂无该模块教学指南）</p>';
-  const kp=(mod.key_points||[]).map(p=>`<li>${esc(p)}</li>`).join('');
-  const cp=(mod.class_practice||[]).map(p=>`<li>${esc(p)}</li>`).join('');
-  const pf=(mod.pitfalls||[]).map(r=>`<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td></tr>`).join('');
-  return `
-    <div class="sec"><h4>模块</h4><div>${esc(mod.title)} · ${esc(mod.weeks_label||'')}</div></div>
-    <div class="sec"><h4>教学目标</h4><div>${esc(mod.objectives||'')}</div></div>
-    <div class="sec"><h4>内容要点与讲法</h4><ul>${kp}</ul></div>
-    <div class="sec"><h4>课堂实操（当堂全员完成）</h4><ul>${cp}</ul></div>
-    <div class="sec"><h4>高频卡点与解法</h4>
-      <table class="pit"><thead><tr><th>卡点</th><th>现象</th><th>解法</th></tr></thead><tbody>${pf}</tbody></table></div>
-    <div class="sec"><h4>能力清单映射</h4><div class="meta">${esc(mod.ability_map||'')}</div></div>`;
+/* 认领后即时展开的课程内容（Robin 的反馈：认领即看内容，少点击）
+   默认只显示「本席位专属」内容；模块整体教学指南收进可折叠参考区，不喧宾夺主。 */
+function renderDetail(s){
+  const mod = state.modules[s.module_number] || {};
+  const sd = s.seat_detail || {};
+  const hasSd = sd && sd.title;
+  let html = '';
+  if(hasSd){
+    html += `<div class="sec"><h4>本席位专属 · 授课内容<span class="badge-tag">仅本席位</span></h4>
+      <div class="meta"><b>主题：</b>${esc(sd.title||'')}</div>
+      <div class="meta"><b>覆盖教案环节：</b>${esc(sd.covers||'')}</div>
+      <div class="meta"><b>本席位时长：</b>${esc(sd.duration_label||(s.duration_min+'分钟'))}</div>
+      <div class="meta"><b>本席位核心验收点：</b>${esc(sd.acceptance||'')}</div>
+    </div>`;
+  } else if(s.topic){
+    html += `<div class="sec"><h4>本席位 · 授课内容</h4>
+      <div class="meta"><b>主题：</b>${esc(s.topic)}</div>
+      <div class="meta"><b>时长：</b>${esc(s.duration_min+'分钟')}</div>
+      <div class="meta"><b>验收点：</b>${esc(s.acceptance||'')}</div>
+    </div>`;
+  } else {
+    html += '<p class="meta">（本席位暂无专属授课内容）</p>';
+  }
+  // 模块整体教学指南：折叠参考，默认收起，不显示整晚全部内容
+  if(mod && mod.title){
+    const kp=(mod.key_points||[]).map(p=>`<li>${esc(p)}</li>`).join('');
+    const cp=(mod.class_practice||[]).map(p=>`<li>${esc(p)}</li>`).join('');
+    const pf=(mod.pitfalls||[]).map(r=>`<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td></tr>`).join('');
+    html += `<details class="mod-ref">
+      <summary>📚 模块整体教学参考（本模块全部席位共享 · 点开查看）</summary>
+      <div class="sec"><h4>模块</h4><div>${esc(mod.title)} · ${esc(mod.weeks_label||'')}</div></div>
+      <div class="sec"><h4>教学目标</h4><div>${esc(mod.objectives||'')}</div></div>
+      <div class="sec"><h4>内容要点与讲法</h4><ul>${kp}</ul></div>
+      <div class="sec"><h4>课堂实操（当堂全员完成）</h4><ul>${cp}</ul></div>
+      <div class="sec"><h4>高频卡点与解法</h4>
+        <table class="pit"><thead><tr><th>卡点</th><th>现象</th><th>解法</th></tr></thead><tbody>${pf}</tbody></table></div>
+      <div class="sec"><h4>能力清单映射</h4><div class="meta">${esc(mod.ability_map||'')}</div></div>
+    </details>`;
+  }
+  return html;
 }
 
 /* 管理页：管理员分配席位 */
